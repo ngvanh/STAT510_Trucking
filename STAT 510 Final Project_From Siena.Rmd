@@ -59,15 +59,17 @@ library(olsrr)
 library(dplyr)
 library(DAAG)
 library(knitr)
+library(corrplot)
 
 # Read in data
-trucking_df = read.delim("~/Library/Mobile Documents/com~apple~CloudDocs/Grad/STAT 510/Final Project/TRUCKING.txt", header = T)
+trucking_df = read.delim("TRUCKING.txt", header = T)
 ```
 
 ```{r, echo = F, include = T}
 head(trucking_df)
 
-hist(trucking_df$PRICPTM)
+hist(trucking_df$PRICPTM, xlab = "Price per ton-mile",
+     main = "Distribution of Price per ton-mile")
 ```
 
 The distribution of the raw prices per observation do not follow a roughly normal distribution, indicating that a transformation of the y-variable may be needed. A log-transformation was performed on the prices and was then investigated.
@@ -75,7 +77,9 @@ The distribution of the raw prices per observation do not follow a roughly norma
 ```{r, echo = F}
 
 # Check distribution of response variable
-hist(trucking_df$LNPRICE) # No transformation needed (already transformed to ln(Price))
+hist(trucking_df$LNPRICE,
+     xlab = "LN(Price)",
+     main = "Distribution of Ln(Price)") # No transformation needed (already transformed to ln(Price))
 
 # Data formatting
 trucking_df = trucking_df %>%
@@ -119,6 +123,30 @@ redModelSO = ols_step_backward_p(fullModelSO)$model
 summary(redModelSO) # adj R: 0.9932
 
 # ols_step_both_p(fullModelSO, pent = 0.1, prem = 0.15)$model
+```
+
+### Multilinear Regression with Interactions
+```{r, echo = F, include = F}
+fullModelInt = lm(LNPRICE ~ .*., data = trucking_df)
+summary(fullModelInt) # adj R:  0.9576
+
+ols_step_backward_p(fullModelInt)
+
+redModelInt = ols_step_backward_p(fullModelInt)$model
+summary(redModelInt) # adj R: 0.9589
+
+selecttion1 <- trucking_df %>% select(., -PCTLOAD)
+proposedMod <- lm(LNPRICE ~ .*., data=selecttion1)
+summary(proposedMod) #R_adj = 0.9536
+
+ols_step_backward_p(proposedMod)
+
+#redModelInt = ols_step_backward_p(fullModelInt)$model
+summary(ols_step_backward_p(proposedMod)$model) #Adj R-squared:  0.9556 
+
+#remove insignificant predictors 
+summary(lm(LNPRICE ~DISTANCE+WEIGHT+ORIGIN+MARKET+DEREG+PRODUCT+DISTANCE:ORIGIN+DISTANCE:MARKET+WEIGHT:DEREG+WEIGHT:PRODUCT+ORIGIN:MARKET+DEREG:PRODUCT,
+           data = trucking_df)) #Adjusted R-squared:  0.9548 
 ```
 
 ### Model Comparisons
@@ -171,3 +199,26 @@ summary(redModelSO)
 
 
 ## Conclusion (**TBD**)
+
+## Apendix
+```{r EDA}
+par(mfrow = c(1,2))
+plot(trucking_df$DISTANCE, trucking_df$LNPRICE)
+plot(trucking_df$WEIGHT, trucking_df$LNPRICE)
+
+#correlation matrix
+res <- cor(trucking_df %>% select_if(., is.numeric))
+round(res, 2)
+
+#WWEIGHT and PCTLOAD are perfectly correlated -> multicolinearity issue if add both into the model
+
+pairs(trucking_df%>% select_if(., is.numeric), pch = 19, lower.panel = NULL)
+```
+```{r checking assumptions}
+par(mfrow = c(2,2))
+plot(redModelFO)
+
+par(mfrow = c(2,2))
+plot(redModelSO)
+```
+
