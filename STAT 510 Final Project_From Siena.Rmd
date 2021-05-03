@@ -1,0 +1,173 @@
+---
+title: "STAT 510 Linear Regression Final Project  \n (Replace with Better Title)"
+author: "William Lam, Anh Nguyen, and Siena Tabuena-Frolli"
+date: "05/10/2021"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+\newpage
+\tableofcontents
+\newpage
+
+## Abstract
+
+The motor transport industry is a key factor in goods being transported to and from consumers in the United States. In industries that have many players involved, regulation becomes more and more important as it standardizes practices and expectations across all competitors allowing for a fair market. In the 1980's, Florida began deregulating the transportation prices for the trucking industry. At the time of deregulation, the impact to the transportation prices was unknown and will be investigated in this report. In addition, the effect on prices from additional variables, including but not limited to shipment weight, city of origin, and distance travelled, will be assessed. Based on the factors that are determined to be the most infulential on transporation prices, a predicitve model will also be determined for estimating the price for shipping, given a set of conditions for the variables included in the final model.
+
+Linear regression analysis was implemented to investigate the relationship between multiple variables of interest on the trasportation price per ton-mile. Various model selection methods were used to determine a model that included only the most important predictors for estimating the shipment prices. Multiple models were investigated including first-order models along with models including two-way interaction and quadratic terms, when applicable.
+
+Through the modelling, it was determined that **ADD CONCLUSION**
+
+
+## Introduction
+Until the 1980's, the motor transportation industry was regulated to set consistent expectations for all companies to follow. Standardization of policies and expectations allows for a more competitive market as it reduces the opportunity for monopolization of the industry by large companies. In addition, regulation often leads to higher safety standards since there may be penalties enacted for not following regulations. 
+
+At the time of deregulation in Florida, the effect of a deregulated industry may have been unknown and could have negative impacts on the transportation price of goods. On top of whether or not a shipment is deregulated, it's also important to consider how other factors may influence the transportation price. This analysis will investigate both the impact of deregulation in price as well as propose a model that can be used to predict transportation prices given various values for the important predictors identified through model selection.
+
+Data was collected for 134 total observations and included the following variables: Transportation price per ton-mile, distance travelled (in hundreds of miles), weight of load (in 1,000 lbs), percent of truck load capacity, city of origin (Jacksonville or Miami), size of market destination (Large or Small), if deregrulation was in effect (Yes or No), and the product classification (100, 150, or 200).
+
+## Methods
+Linear regression analysis was implemented to investigate the relationship between the variables of interest on the price of transportation. 
+
+### Assumptions
+The following assumptions were made when implementing linear regression:  
+
+|        $\bullet$ There is a linear relationship between the predictor and response variables 
+|        $\bullet$ The model residuals are independent from each other
+|        $\bullet$ The model residuals have constant variance for every level of the predictors
+|        $\bullet$ The model residuals are normally distributed
+
+### Limitations
+It should be noted that there may be additional factors that are not included in this data set that may be better predictors for estimating the transporation price. The models tested in this report were also limited to second-order terms, including interactions and quadratic terms. Higher-order models were not evaluated and may also have a signficant effect on the prices.
+
+## Results
+
+### Data Importing and Investigation
+Data was imported and investigated to determine if linear regression was applicable. 
+```{r, echo = F, include = F}
+## Setup
+
+# Clear history
+rm(list = ls())
+
+# Install relevant packages
+# install.packages(c("olsrr", "dplyr", "DAAG", "knitr"))
+
+# Load relevant packages
+library(olsrr)
+library(dplyr)
+library(DAAG)
+library(knitr)
+
+# Read in data
+trucking_df = read.delim("~/Library/Mobile Documents/com~apple~CloudDocs/Grad/STAT 510/Final Project/TRUCKING.txt", header = T)
+```
+
+```{r, echo = F, include = T}
+head(trucking_df)
+
+hist(trucking_df$PRICPTM)
+```
+
+The distribution of the raw prices per observation do not follow a roughly normal distribution, indicating that a transformation of the y-variable may be needed. A log-transformation was performed on the prices and was then investigated.
+
+```{r, echo = F}
+
+# Check distribution of response variable
+hist(trucking_df$LNPRICE) # No transformation needed (already transformed to ln(Price))
+
+# Data formatting
+trucking_df = trucking_df %>%
+  mutate(PRODUCT = as.character(PRODUCT),
+         PRICPTM = NULL,
+         CARRIER = NULL)
+
+# str(trucking_df)
+```
+
+The log-transformed prices follow a roughly normal distribution, indicating that it is an appropriate response variable to model through regression.
+
+In addition to transformed data, predictor variables were investigated to determine if special formatting was necessary to make. Of note, the `CARRIER` predictor only had one value in the data and could therefore be excluded from data modelling. In addition, the `PRODUCT` predictor was converted into a factored variable, with 3 levels: 100, 150, and 200, where a higher level indicates more valuable goods. If `PRODUCT` were treated as numeric, the model estimates may not be truly representative of the effect of the product as the model may assume that this is a continuous variable and values between 100-150 or 150-200, can be obtained.
+
+Once the data was investigated and a proper transformed response variable was identified, various models were fit to the data to determine which predictors had the most significant effect on the transportation prices. 
+
+Two types of models were tested:
+
+|        A. First-order model with no interaction or quadratic terms
+|        B. Second-order model with all two-way interaction and quadratic (for numeric predictors) terms
+
+### First-Order Model Investigation
+```{r, echo = F, include = F}
+fullModelFO = lm(LNPRICE ~ ., data = trucking_df)
+summary(fullModelFO) # adj R: 0.8436, 
+
+ols_step_backward_p(fullModelFO)
+
+redModelFO = ols_step_backward_p(fullModelFO)$model
+summary(redModelFO) # adj R: 0.846
+```
+
+### Second-Order Model Investigation
+```{r, echo = F, include = F}
+fullModelSO = lm(LNPRICE ~ .*. + I(DISTANCE^2) + I(WEIGHT^2), data = trucking_df)
+summary(fullModelSO) # adj R: 0.9929
+
+ols_step_backward_p(fullModelSO)
+
+redModelSO = ols_step_backward_p(fullModelSO)$model
+summary(redModelSO) # adj R: 0.9932
+
+# ols_step_both_p(fullModelSO, pent = 0.1, prem = 0.15)$model
+```
+
+### Model Comparisons
+The following models were compared:
+
+|        1. First-order **full** linear model
+|                 i. All predictors included  
+|                 ii. 7 predictors total
+|        2. First-order **reduced** linear model  
+|                 i. Only predictors that have a significant effect on price included  
+|                 ii. 5 predictors total  
+|        3. Second-order **full** linear model  
+|                 i. All first-order, quadratic terms (for continuous predictors), and two-way intereaction terms
+|                    included  
+|                 ii. 30 predictors total  
+|        4. Second-order **reduced** linear model  
+|                 i. Only first- and higher-order predictors that have significant effect on price included  
+|                 ii. 23 predictors total  
+
+Multiple selection criteria were tested for each of the four models to better compare and select the model that fit the data the best. The following criteria were used for model selection: $R^{2}_{a, p}$, $AIC_{p}$, $SBC_{p}$, $C_{p}$, and $PRESS_{p}$.
+```{r, echo = F, include = T}
+modelList = list(fullModelFO,
+                 redModelFO,
+                 fullModelSO,
+                 redModelSO)
+
+modelComp_df = data.frame(Model = 1:4,
+                          Description = c("First-order Full Model",
+                                          "First-order Reduced Model",
+                                          "Second-order Full Model",
+                                          "Second-order Reduced Model"))
+modelComp_df$`Adjusted R²` = sapply(modelList, function(x) summary(x)$adj.r)
+modelComp_df$AIC = sapply(modelList, function(x) AIC(x))
+modelComp_df$SBC = sapply(modelList, function(x) BIC(x))
+modelComp_df$Cp[1:2] = sapply(modelList[1:2], function(x) ols_mallows_cp(x, fullmodel = fullModelFO))
+modelComp_df$Cp[3:4] = sapply(modelList[3:4], function(x) ols_mallows_cp(x, fullmodel = fullModelSO))
+modelComp_df$PRESS = sapply(modelList, function(x) press(x))
+
+modelComp_df[, 3:7] = sapply(modelComp_df[, 3:7], function(x) round(x, digits = 3))
+```
+```{r results = "asis", echo = F}
+kable(modelComp_df, caption = "Model Comparison Table with Selection Criteria")
+```
+
+From Table 1, the best model identified via all selection criteria is Model 4, which fits quadratic and two-way interaction terms into the model. A summary of the model can be found below.
+
+```{r, echo = F}
+summary(redModelSO)
+```
+
+
+## Conclusion (**TBD**)
